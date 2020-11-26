@@ -1,13 +1,22 @@
 #!/bin/bash
 
 export DATA_SHARED=${DATA_SHARED:-/data/shared}
-export DATA_LOCAL=${DATA_LOCAL:-/data/LOCAL}
+export DATA_LOCAL=${DATA_LOCAL:-/data/local}
 
-function doSync {
-    unison "${DATA_SHARED}/" "${DATA_LOCAL}/" -auto -batch
+# export UNISON_FLAGS=${UNISON_FLAGS:-"-retry 3 -auto -batch -repeat watch -numericids"}
+
+export CLOSE=0
+
+cleanup () {
+    export CLOSE=1
+    pkill -SIGTERM unison*
+    exit 0
 }
 
-unison "${DATA_SHARED}/" "${DATA_LOCAL}/" -auto -batch
-echo "Done" > /data/syncStatus
+trap cleanup SIGINT SIGTERM
 
-fswatch -o /data/ | xargs -n1 -I{} doSync
+while [ 1 ]; do
+    echo "Starting fs watch for changes:"
+    unison "${DATA_SHARED}/" "${DATA_LOCAL}/" -prefer "${DATA_SHARED}/" "$@"
+    echo "unison died; exit code $?. looping unless killed..."
+done
